@@ -21,20 +21,28 @@ class VirtualJukebox(object):
         self._nfc = NFCController()
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
-        self._currentlyPlayingURI = None  # We'll use this to check against when looking for changes in NFC state
 
+    def check_tag_existence_and_play(self):
+        """ When called, will check to ensure a tag is present and plays the music associated with the tag
 
-    def waiting_for_tag(self):
-        """When called, this is going to block and continually poll the NFC Reader until a tag is put near it
+        This is only called when transferring from a WAITING state, and transitions to a PLAYING state
         """
         
         # This is a blocking call.  Will set 'tag' to the tag presented to the reader
         if not self._nfc.currentTag:
             return
 
+        if not self._state == VirtualJukebox.State.WAITING:
+            logging.error('check_tag_existence_and_play called from inappropriate state.  Returning as no-op')
+            return 
+
         
         tag_info = NFCController.get_tag_data_as_dict(self._nfc.currentTag)
         logging.debug('Tag info: {0}'.format(tag_info))
+
+        if not tag_info:
+            logging.error('Attempt to get tag info failed: Race condition?')
+            return
 
         logging.debug('Building medialist')
         ml = self._vlc.build_medialist_from_uri(tag_info['uri'])
@@ -47,7 +55,7 @@ class VirtualJukebox(object):
 
 
     def waiting_for_halt(self):
-        """Blocking call which will stop the music if the current tag is removed (or replaced)
+        """When called, checks to see if there is a 
 
         Will make appropriate state changes as necessary
         """
@@ -67,7 +75,7 @@ class VirtualJukebox(object):
             while True:
                 self._nfc.sense_for_target_tag()
                 if self._state == VirtualJukebox.State.WAITING:
-                    self.waiting_for_tag()
+                    self.check_tag_existence_and_play()
 
                 if self._state == VirtualJukebox.State.PLAYING:
                     self.waiting_for_halt()
