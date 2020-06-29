@@ -6,6 +6,7 @@ from vlccontrol.vlccontroller import VLCController
 from enum import Enum, auto
 import logging
 import sys
+from time import sleep
 
 logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
                     level=logging.DEBUG)
@@ -23,18 +24,16 @@ class VirtualJukebox(object):
         self._currentlyPlayingURI = None  # We'll use this to check against when looking for changes in NFC state
 
 
-    def wait_for_tag(self):
+    def waiting_for_tag(self):
         """When called, this is going to block and continually poll the NFC Reader until a tag is put near it
         """
         
         # This is a blocking call.  Will set 'tag' to the tag presented to the reader
-        logging.debug('Waiting for tag')
-        tag = self._nfc.block_for_target_tag()
+        if not self._nfc.currentTag:
+            return
 
-        logging.debug('Found tag: {0}'.format(tag))
         
-        
-        tag_info = NFCController.get_tag_data_as_dict(tag)
+        tag_info = NFCController.get_tag_data_as_dict(self._nfc.currentTag)
         logging.debug('Tag info: {0}'.format(tag_info))
 
         logging.debug('Building medialist')
@@ -42,30 +41,38 @@ class VirtualJukebox(object):
         self._vlc._media_list_player.set_media_list(ml)
         self._vlc._media_list_player.play()
 
+        logging.debug('Setting state to PLAYING')
         self._state = VirtualJukebox.State.PLAYING
         self._currentlyPlayingURI = tag_info['uri']
 
 
-    def wait_for_halt(self):
+    def waiting_for_halt(self):
         """Blocking call which will stop the music if the current tag is removed (or replaced)
 
         Will make appropriate state changes as necessary
         """
+        if self._nfc.is_tag_present():
+            return
 
-        pass
-            
-
+        logging.debug('Tag is no longer present.  Stopping music')
+        logging.debug('Setting state to WAITING')
+        self._vlc._media_list_player.stop()
+        self._state = VirtualJukebox.State.WAITING
+        return
+        
 
     def run(self):
 
         try:
             while True:
+                self._nfc.sense_for_target_tag()
                 if self._state == VirtualJukebox.State.WAITING:
-                    self.wait_for_tag()
+                    self.waiting_for_tag()
 
                 if self._state == VirtualJukebox.State.PLAYING:
-                    self.wait_for_halt()
+                    self.waiting_for_halt()
 
+            sleep(0.1)
 
         except KeyboardInterrupt:
             logging.debug('Ctrl-c interrupt:  Exiting application')
