@@ -10,5 +10,6 @@ Instead of using the spotify apis to hook up with Sonos, we are associating spot
 |--|--|--|
 |Alkaline Trio|Goddamnit!|spotify:album:3bic2qlxGauU2dVSCrinLY|
 |Black Sabbath|Paranoid|spotify:album:6r7LZXAVueS5DqdrvXJJK7|
+|DJ Shadow|Entroducing|spotify:album:4wvqGLk1HThPA0b5lzRK2l|
 |Lovage|Music To Make Love To Your Old Lady By|spotify:album:3QFwPfYolMmXNNdOrRLLGE|
 |Various Artists|Moana OST|spotify:album:6pZj4nvx6lV3ulIK3BSjvs|

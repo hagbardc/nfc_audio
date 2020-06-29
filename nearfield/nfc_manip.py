@@ -1,5 +1,7 @@
-from nfccontroller import NFCController
+#!/usr/bin/python3.7
 
+from nfccontroller import NFCController
+from time import sleep
 import argparse
 import sys
  
@@ -32,8 +34,16 @@ def parse_arguments(argv):
 def read_tag():
 
     nfcController = NFCController()
-    tag = nfcController.block_for_target_tag()
+
+    while True:
+        nfcController.sense_for_target_tag()
+        if nfcController.is_tag_present():
+            break
+        sleep(0.1)
+
     nfcController.print_tag_data(nfcController.currentTag)
+
+    nfcController._clf.close()
 
 
 def write_tag(uri=None, band=None, album=None):
@@ -43,7 +53,14 @@ def write_tag(uri=None, band=None, album=None):
         return
 
     nfcController = NFCController()
-    nfcController.block_for_target_tag()
+
+    while True:
+        nfcController.sense_for_target_tag()
+        if nfcController.is_tag_present():
+            break
+
+        sleep(0.1)
+
 
     tag = nfcController.currentTag
     data_to_write = {'uri': uri, 'band': band, 'album': album }
@@ -51,10 +68,7 @@ def write_tag(uri=None, band=None, album=None):
     print('Writing data: {0}'.format(data_to_write))
     nfcController.write_tag_data(tag, data_to_write)
 
-    print('Reading data back...')
-    newtag = nfcController.block_for_target_tag()
-    nfcController.print_tag_data(newtag)
-
+    nfcController._clf.close()
 
 
 
@@ -73,6 +87,10 @@ if __name__ == '__main__':
 
         if args.type == 'write':
             write_tag(uri=args.uri, band=args.band, album=args.album)
+
+            print('Reading data back...')
+            read_tag()
+            
 
 
     except KeyboardInterrupt:

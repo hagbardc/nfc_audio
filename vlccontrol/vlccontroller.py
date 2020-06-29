@@ -11,6 +11,7 @@ class VLCController(object):
     localAudioRegistry = {
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',
+        '4wvqGLk1HThPA0b5lzRK2l': '/home/pi/Documents/audio/DJ Shadow/Endtroducing/',
         '6r7LZXAVueS5DqdrvXJJK7': '/home/pi/Documents/audio/Black Sabbath/Paranoid/'
     }
 
