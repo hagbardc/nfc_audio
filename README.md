@@ -2,7 +2,7 @@
 
  Inspired by (a recent post on reddit)[https://www.reddit.com/r/Python/comments/he081v/i_wrote_a_python_script_to_play_an_album_on_sonos/], I wanted to code something up that allowed me to manipulate physical devices to play music from my computer.  The idea here is that, given an NFC reader (which will eventually be embedded in a nice looking box) and some NFC stickers attached to printed out album art, we should be able to play music from the harddrive of a raspberry pi just by putting the album art on the box.
 
-
+Instead of using the spotify apis to hook up with Sonos, we are associating spotify URIs with local paths.  Playlists are created and delivered to VLC (installed locally on the raspberry) and played through the audio jack.
  
 
 
