@@ -1,10 +1,13 @@
 import vlc
-
+ 
 from os import listdir
 from os.path import isfile, isdir, join
 
 class VLCController(object):  
 
+    # We're using spotify uris here even though we aren't actually playing the music via spotify
+    # This is primarily because I want to be be able to play the music via spotify without re-encoding
+    # all of the NFC stickers
     localAudioRegistry = {
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',

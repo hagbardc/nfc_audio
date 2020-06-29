@@ -12,12 +12,18 @@ logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
                     level=logging.DEBUG)
 
 class VirtualJukebox(object):
+    """App driving the physical hardware/music interface.
+
+    Manages playing audio via VLC, driven by tags read from an NFCController
+
+    """
+
 
     class State(Enum):
         WAITING = auto(),
-        PLAYING = auto()
+        PLAYING = auto() 
 
-    def __init__(self):
+    def __init__(self): 
         self._nfc = NFCController()
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
@@ -28,7 +34,6 @@ class VirtualJukebox(object):
         This is only called when transferring from a WAITING state, and transitions to a PLAYING state
         """
         
-        # This is a blocking call.  Will set 'tag' to the tag presented to the reader
         if not self._nfc.currentTag:
             return
 
@@ -80,7 +85,7 @@ class VirtualJukebox(object):
                 if self._state == VirtualJukebox.State.PLAYING:
                     self.waiting_for_halt()
 
-            sleep(0.1)
+            sleep(0.1)  # There's no real need to poll the NFC device at an incredibly high frequency
 
         except KeyboardInterrupt:
             logging.debug('Ctrl-c interrupt:  Exiting application')
