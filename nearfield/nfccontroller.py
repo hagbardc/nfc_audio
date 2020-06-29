@@ -2,34 +2,78 @@ import nfc
 import ndef
 from nfc.clf import RemoteTarget
 from time import sleep
+from enum import Enum, auto
 
+import logging
+logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
+                    level=logging.DEBUG)
 
 
 
 class NFCController(object):
+ 
 
     def __init__(self):
         self._clf = nfc.ContactlessFrontend('usb')
 
+        self.currentTag = None  # Currently connected tag, if any
+        self.lastTag = None     # We use this to check to see if the tag currently being read is different than the last one stored
 
-    def block_for_target_tag(self):
+    def is_tag_present(self):
+        """Returns True if there is a tag at the reader, False else
         """
-        Sets up a lamdba which blocks until a tag is brought near the NFC reader
+        return self.currentTag is not None
 
-        Returns:
-            A Type3Tag (e.g. nfc.tag.tt2_nxp.NTAG215)
-        """
-        tag = self._clf.connect(rdwr={'on-connect': lambda tag: False})
-        return tag
+    def on_connect(self, tag):
+        # If this is the first time we are reading, or there is nothing there, just set the tag
+        if not self.currentTag:
+            self.currentTag = tag
+            logging.debug('Setting current tag: {0}'.format(NFCController.get_tag_data_as_dict(self.currentTag)))
+            return
 
-    def print_tag_data(self, tag):
+        if self.currentTag.identifier != tag.identifier:
+            logging.debug('Current tag does not match new tag. Setting current tag: {0}'.format(NFCController.get_tag_data_as_dict(self.currentTag)))
+            self.lastTag = self.currentTag
+            self.currentTag = tag
+            logging.debug(self.currentTag)
+
+        return
+
+    def on_release(self, tag):
+        logging.debug('Calling on_release with {0}'.format(tag))
+        logging.debug('Tag removed from the reader')
+        self.lastTag = self.currentTag
+        self.currentTag = None
+        return
+
+
+    def sense_for_target_tag(self):
+
+        target = self._clf.sense(RemoteTarget('106A'))
+        
+        # If there's nothing there, and we think there's something there, reset
+        if not target and self.currentTag:
+            self.on_release(None)
+            return
+
+        # If there's something there, call on-connect
+        if target:
+            tag = nfc.tag.activate(self._clf, target)
+            if not tag:
+                logging.warning('Failed attempt to set tag from target. Likely race condition')
+                return
+
+            self.on_connect(tag)
+
+    @staticmethod
+    def print_tag_data(tag):
         """Prints the data it finds in the NDEF record of the tag
 
         Args:
             tag (A Type3Tag (e.g. nfc.tag.tt2_nxp.NTAG215)): The tag for which we want to print the data
         """
         if tag.ndef is None:
-            print('No data found in tag')
+            logging.warning('No data found in tag')
             return
 
         for record in tag.ndef.records:
@@ -38,7 +82,7 @@ class NFCController(object):
     @staticmethod
     def get_tag_data_as_dict(tag):
         if tag.ndef is None:
-            print('No data found in tag')
+            logging.warning('No data found in tag')
             return None
 
         data_dict = {}
@@ -84,11 +128,12 @@ class NFCController(object):
 
 
 if __name__ == '__main__':
-    
     nfcController = NFCController()
+    # nfcController.block_for_target_tag()
 
-    tag = nfcController.block_for_target_tag()
-    nfcController.print_tag_data(tag)
-
+    while True:
+        nfcController.sense_for_target_tag()
+        sleep(0.1)
+        # nfcController.print_tag_data(nfcController.currentTag)
 
     #spotify:album:7MtJrKwP2h9eJMqnooR6iM

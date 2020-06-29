@@ -33,7 +33,7 @@ def read_tag():
 
     nfcController = NFCController()
     tag = nfcController.block_for_target_tag()
-    nfcController.print_tag_data(tag)
+    nfcController.print_tag_data(nfcController.currentTag)
 
 
 def write_tag(uri=None, band=None, album=None):
@@ -43,8 +43,9 @@ def write_tag(uri=None, band=None, album=None):
         return
 
     nfcController = NFCController()
-    tag = nfcController.block_for_target_tag()
+    nfcController.block_for_target_tag()
 
+    tag = nfcController.currentTag
     data_to_write = {'uri': uri, 'band': band, 'album': album }
 
     print('Writing data: {0}'.format(data_to_write))
