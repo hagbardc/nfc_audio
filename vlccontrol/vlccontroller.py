@@ -3,6 +3,8 @@ import vlc
 from os import listdir
 from os.path import isfile, isdir, join
 
+import logging
+
 class VLCController(object):  
 
     # We're using spotify uris here even though we aren't actually playing the music via spotify
@@ -12,6 +14,7 @@ class VLCController(object):
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',
         '4wvqGLk1HThPA0b5lzRK2l': '/home/pi/Documents/audio/DJ Shadow/Endtroducing/',
+        'desmond_dekker_rockin': '/home/pi/Documents/audio/Desmond Dekker/Rockin\' Steady The Best of Desmond Dekker/',
         '6r7LZXAVueS5DqdrvXJJK7': '/home/pi/Documents/audio/Black Sabbath/Paranoid/'
     }
 
@@ -97,14 +100,18 @@ class VLCController(object):
         """
 
         split_uri = uri.split(':')
+        media_list = None
         
-        if split_uri[0] == 'file' or split_uri[0] == 'spotify':
+        if split_uri[0] == 'local' or split_uri[0] == 'spotify':
             
             uri_key = split_uri[len(split_uri)-1]
             album_location = VLCController.localAudioRegistry[uri_key]
             filepaths =  sorted(self.get_audio_filepaths_from_path(album_location))
             media_list = self.convert_filepaths_to_medialist(filepaths)
 
+
+        if not media_list:
+            logging.error('No valid media list was created. Probable URI error on tag')
         return media_list
 
 

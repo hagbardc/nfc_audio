@@ -64,6 +64,11 @@ class VirtualJukebox(object):
 
         Will make appropriate state changes as necessary
         """
+
+        # TODO: Would be nice if we supported PAUSE instead of just stop
+        # The idea would be that if you remove a tag, but put it back, you
+        # would pick up where you left off.  If the album changes, you start 
+        # from the beginning of the new album
         if self._nfc.is_tag_present():
             return
 
