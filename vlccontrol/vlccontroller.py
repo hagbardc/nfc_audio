@@ -12,6 +12,7 @@ class VLCController(object):
     # all of the NFC stickers
     localAudioRegistry = {
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
+        '6pZj4nvx6lV3ulIK3BSjvs': '/home/pi/Documents/audio/Soundtrack/Moana/',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',
         '4wvqGLk1HThPA0b5lzRK2l': '/home/pi/Documents/audio/DJ Shadow/Endtroducing/',
         'desmond_dekker_rockin': '/home/pi/Documents/audio/Desmond Dekker/Rockin\' Steady The Best of Desmond Dekker/',
