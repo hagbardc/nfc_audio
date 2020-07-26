@@ -27,6 +27,7 @@ class VirtualJukebox(object):
         self._nfc = NFCController()
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
+        self._currentlyPlayingURI = None
 
     def check_tag_existence_and_play(self):
         """ When called, will check to ensure a tag is present and plays the music associated with the tag
@@ -49,6 +50,12 @@ class VirtualJukebox(object):
             logging.error('Attempt to get tag info failed: Race condition?')
             return
 
+        if tag_info['uri'] == self._currentlyPlayingURI:
+            self._vlc._media_list_player.play()
+            self._state = VirtualJukebox.State.PLAYING
+            return
+
+        self._vlc._media_list_player.stop()
         logging.debug('Building medialist')
         ml = self._vlc.build_medialist_from_uri(tag_info['uri'])
         self._vlc._media_list_player.set_media_list(ml)
@@ -74,7 +81,7 @@ class VirtualJukebox(object):
 
         logging.debug('Tag is no longer present.  Stopping music')
         logging.debug('Setting state to WAITING')
-        self._vlc._media_list_player.stop()
+        self._vlc._media_list_player.pause()
         self._state = VirtualJukebox.State.WAITING
         return
         
