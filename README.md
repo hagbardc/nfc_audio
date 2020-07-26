@@ -11,5 +11,7 @@ To view a demo of the prototype:  https://youtu.be/z2we-WwWUfo
 |Alkaline Trio|Goddamnit!|spotify:album:3bic2qlxGauU2dVSCrinLY|
 |Black Sabbath|Paranoid|spotify:album:6r7LZXAVueS5DqdrvXJJK7|
 |DJ Shadow|Entroducing|spotify:album:4wvqGLk1HThPA0b5lzRK2l|
+|Jobim|The Unknown Antonio Carlos Jobim|spotify:album:3ToNGp8ny9FOcjcZRn5I08|
 |Lovage|Music To Make Love To Your Old Lady By|spotify:album:3QFwPfYolMmXNNdOrRLLGE|
+|Muddy Waters|I'm Ready|spotify:album:4mh3XUBkBiIpCCriJ4mYNP|
 |Various Artists|Moana OST|spotify:album:6pZj4nvx6lV3ulIK3BSjvs|

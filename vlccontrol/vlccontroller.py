@@ -11,6 +11,8 @@ class VLCController(object):
     # This is primarily because I want to be be able to play the music via spotify without re-encoding
     # all of the NFC stickers
     localAudioRegistry = {
+        '4mh3XUBkBiIpCCriJ4mYNP': '/home/pi/Documents/audio/Muddy Waters/I\'m Ready/',
+        '3ToNGp8ny9FOcjcZRn5I08': '/home/pi/Documents/audio/Jobim/The Unknown Antonio Carlos Jobim/',
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
         '6pZj4nvx6lV3ulIK3BSjvs': '/home/pi/Documents/audio/Soundtrack/Moana/',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',
