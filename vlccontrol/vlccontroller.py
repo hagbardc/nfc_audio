@@ -11,13 +11,18 @@ class VLCController(object):
     # This is primarily because I want to be be able to play the music via spotify without re-encoding
     # all of the NFC stickers
     localAudioRegistry = {
+        '0JAGz65j3Yn5O789bhDSwh': '/home/pi/Documents/audio/Jobim/The Man From Ipanema/',
+        'dr_octagon_instrumentalyst': '/home/pi/Documents/audio/Dr Octagon/Instrumentalyst (Octagon Beats)/',
+        '10E4WkTiRDqNnL0qdlXB5b': '/home/pi/Documents/audio/The Smiths/Singles/',
+        '695W2j99IV98nTIbpJScPu': '/home/pi/Documents/audio/Fitz And The Tantrums/Pickin\' Up The Pieces/',
         '4mh3XUBkBiIpCCriJ4mYNP': '/home/pi/Documents/audio/Muddy Waters/I\'m Ready/',
+        'daft_punk_get_lucky':    '/home/pi/Documents/audio/Daft Punk/Get Lucky/',
         '3ToNGp8ny9FOcjcZRn5I08': '/home/pi/Documents/audio/Jobim/The Unknown Antonio Carlos Jobim/',
         '3bic2qlxGauU2dVSCrinLY': '/home/pi/Documents/audio/Alkaline Trio/Goddamnit!',
         '6pZj4nvx6lV3ulIK3BSjvs': '/home/pi/Documents/audio/Soundtrack/Moana/',
         '3QFwPfYolMmXNNdOrRLLGE': '/home/pi/Documents/audio/Lovage/Music To Make Love To Your Old Lady By/',
         '4wvqGLk1HThPA0b5lzRK2l': '/home/pi/Documents/audio/DJ Shadow/Endtroducing/',
-        'desmond_dekker_rockin': '/home/pi/Documents/audio/Desmond Dekker/Rockin\' Steady The Best of Desmond Dekker/',
+        'desmond_dekker_rockin':  '/home/pi/Documents/audio/Desmond Dekker/Rockin\' Steady The Best of Desmond Dekker/',
         '6r7LZXAVueS5DqdrvXJJK7': '/home/pi/Documents/audio/Black Sabbath/Paranoid/'
     }
 
