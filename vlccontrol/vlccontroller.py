@@ -39,6 +39,15 @@ class VLCController(object):
 
     @staticmethod
     def is_path_to_audio_file(path):
+        """Checks if the passed in string is a valid path to an audio file
+        "Is this a file" and "Does this have a mp3 or wav extension"
+
+        Args:
+            path (str): Some string, which hopefully is a file path to an audio file
+
+        Returns:
+            bool: True if the string passed in is an audio file, false else
+        """
         if not isfile(path):
             return False
         
@@ -46,6 +55,7 @@ class VLCController(object):
             return False
 
         return True
+        
 
     def stop(self):
         """Sends a stop the the currently playing media (if any)
