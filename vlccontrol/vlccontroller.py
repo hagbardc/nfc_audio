@@ -57,8 +57,18 @@ class VLCController(object):
         return True
         
 
+    def play(self):
+        """Sends a play to the currently playing media (if any)
+        """
+        self._media_list_player.play()
+
+    def pause(self):
+        """Sends a pause the currently playing media (if any)
+        """
+        self._media_list_player.pause()
+        
     def stop(self):
-        """Sends a stop the the currently playing media (if any)
+        """Sends a stop to the currently playing media (if any)
         """
         self._media_list_player.stop()
 
@@ -135,6 +145,7 @@ class VLCController(object):
         if not media_list:
             logging.error('No valid media list was created. Probable URI error on tag')
         return media_list
+
 
 
 
