@@ -19,7 +19,7 @@ To view a demo of the prototype:  https://youtu.be/z2we-WwWUfo
 
 What the following python code does is to get a plex server object (for the desktop), get a list of albums, grabs the first album off the list, and then gets the second track from that album.  Then it gets a stream url for that track, which can be put as a path for a media_list using the vlc controller
 
-
+<pre>
 from plexapi.myplex import MyPlexAccount  
 token = 'KLs3X72-9BzWhpJSen9U'            
 music = plex.library.section('Music')
@@ -41,3 +41,4 @@ media_list.add_media(vlc._vlcInstance.media_new('http://192.168.1.6:32400/audio/
 media_list.add_media(vlc._vlcInstance.media_new('http://192.168.1.6:32400/audio/:/transcode/universal/start.m3u8?X-Plex-Platform=Chrome&copyts=1&mediaIndex=0&offset=0&path=%2Flibrary%2Fmetadata%2F924&X-Plex-Token=KLs3X72-9BzWhpJSen9U'))
 vlc._media_list_player.set_media_list(media_list)
 vlc._media_list_player.play()
+</pre>
