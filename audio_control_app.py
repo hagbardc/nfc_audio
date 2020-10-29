@@ -3,6 +3,9 @@
 from nearfield.nfccontroller import NFCController
 from vlccontrol.vlccontroller import VLCController
 
+
+
+from multiprocessing import Process, Queue
 from enum import Enum, auto
 import logging
 import sys
@@ -70,7 +73,7 @@ class VirtualJukebox(object):
 
         logging.debug('Setting state to PLAYING')
         self._state = VirtualJukebox.State.PLAYING
-        self._state = VirtualJukebox.PlayType.NFC
+        self._playType = VirtualJukebox.PlayType.NFC
         self._currentlyPlayingURI = tag_info['uri']
 
 
@@ -87,7 +90,7 @@ class VirtualJukebox(object):
         logging.debug('Setting state to WAITING')
         self._vlc._media_list_player.pause()
         self._state = VirtualJukebox.State.WAITING
-        self._state = VirtualJukebox.PlayType.NONE
+        self._playType = VirtualJukebox.PlayType.NONE
         return
         
 
