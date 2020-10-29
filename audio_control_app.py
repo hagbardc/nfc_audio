@@ -2,7 +2,7 @@
 
 from nearfield.nfccontroller import NFCController
 from vlccontrol.vlccontroller import VLCController
-
+from socketmonitor.socketmonitor import music_socket_monitor_worker
 
 
 from multiprocessing import Process, Queue
@@ -31,12 +31,16 @@ class VirtualJukebox(object):
         NFC = auto(),   # Playing audio from the NFC reader
         STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
 
-    def __init__(self): 
+    def __init__(self, nfcQueue, socketQueue): 
         self._nfc = NFCController()
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
         self._playType = VirtualJukebox.PlayType.NONE
         self._currentlyPlayingURI = None
+
+        self._nfcQueue = nfcQueue
+        self._socketQueue = socketQueue
+
 
     def check_tag_existence_and_play(self):
         """ When called, will check to ensure a tag is present and plays the music associated with the tag
@@ -104,6 +108,17 @@ class VirtualJukebox(object):
 
                 if self._state == VirtualJukebox.State.PLAYING:
                     self.waiting_for_halt()
+                
+
+                # Poll the queues to see if there's anything in there waiting for me
+                for q in [self._nfcQueue, self._socketQueue]:
+                    if not q.empty():
+                        message = q.get(block=False, timeout=0.01)
+                        if not message:
+                            continue
+
+                        logging.debug('Message from queue: {0}'.format(message) )
+
 
             sleep(0.1)  # There's no real need to poll the NFC device at an incredibly high frequency
 
@@ -118,6 +133,15 @@ class VirtualJukebox(object):
 
 if __name__ == '__main__':
     
-    app = VirtualJukebox()
+    host = 'nfcaudioserver'
+    port = 32413
+
+    nfcQueue = Queue()
+    socketQueue = Queue()
+
+    socket_process = Process(target = music_socket_monitor_worker, args=(host, port, socketQueue,))
+    socket_process.start()
+
+    app = VirtualJukebox(nfcQueue, socketQueue)
     app.run()
 
