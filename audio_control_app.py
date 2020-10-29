@@ -23,10 +23,16 @@ class VirtualJukebox(object):
         WAITING = auto(),
         PLAYING = auto() 
 
+    class PlayType(Enum):
+        NONE = auto(),  # Not playing anything.  Should be the case when self._state = WAITING
+        NFC = auto(),   # Playing audio from the NFC reader
+        STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
+
     def __init__(self): 
         self._nfc = NFCController()
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
+        self._playType = VirtualJukebox.PlayType.NONE
         self._currentlyPlayingURI = None
 
     def check_tag_existence_and_play(self):
@@ -53,6 +59,7 @@ class VirtualJukebox(object):
         if tag_info['uri'] == self._currentlyPlayingURI:
             self._vlc._media_list_player.play()
             self._state = VirtualJukebox.State.PLAYING
+            self._playType = VirtualJukebox.PlayType.NFC
             return
 
         self._vlc._media_list_player.stop()
@@ -63,6 +70,7 @@ class VirtualJukebox(object):
 
         logging.debug('Setting state to PLAYING')
         self._state = VirtualJukebox.State.PLAYING
+        self._state = VirtualJukebox.PlayType.NFC
         self._currentlyPlayingURI = tag_info['uri']
 
 
@@ -72,10 +80,6 @@ class VirtualJukebox(object):
         Will make appropriate state changes as necessary
         """
 
-        # TODO: Would be nice if we supported PAUSE instead of just stop
-        # The idea would be that if you remove a tag, but put it back, you
-        # would pick up where you left off.  If the album changes, you start 
-        # from the beginning of the new album
         if self._nfc.is_tag_present():
             return
 
@@ -83,6 +87,7 @@ class VirtualJukebox(object):
         logging.debug('Setting state to WAITING')
         self._vlc._media_list_player.pause()
         self._state = VirtualJukebox.State.WAITING
+        self._state = VirtualJukebox.PlayType.NONE
         return
         
 
