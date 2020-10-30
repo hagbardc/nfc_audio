@@ -3,6 +3,7 @@
 from nearfield.nfccontroller import NFCController
 from vlccontrol.vlccontroller import VLCController
 from socketmonitor.socketmonitor import music_socket_monitor_worker
+from plexinterface.plexinterface import PlexInterface
 
 
 from multiprocessing import Process, Queue
@@ -42,6 +43,9 @@ class VirtualJukebox(object):
         self._nfcQueue = nfcQueue
         self._socketQueue = socketQueue
 
+        self._plex = PlexInterface()
+        self._plex.connect()  # This will fail if the server isn't up.  Should do so gracefully, and reconnect when needed
+
 
     def process_queue_message(self, message):
         """Takes in a message from the data sources, and triggers audio events as appropriate
@@ -53,7 +57,7 @@ class VirtualJukebox(object):
         # Convert the string to a dict, and validate the content
         try:
             messageDict = json.loads(message)
-        except json.decoder.JSONDecodeError as err:
+        except json.decoder.JSONDecodeError:
             logging.error('Invalid JSON string on queue: [{0}]'.format(message))
             return
         
@@ -67,11 +71,12 @@ class VirtualJukebox(object):
 
     def _process_queue_message__nfc(self, messageDict):
 
-        tag_info = messageDict['data']
+        tagInfo = messageDict['data']
+        logging.debug('Procesing NFC message: {0}'.format(messageDict))
 
         if messageDict['event'] == 'start':
             
-            if tag_info['uri'] == self._currentlyPlayingURI:
+            if tagInfo['uri'] == self._currentlyPlayingURI:
                 self._vlc._media_list_player.play()
                 self._state = VirtualJukebox.State.PLAYING
                 self._playType = VirtualJukebox.PlayType.NFC
@@ -79,14 +84,14 @@ class VirtualJukebox(object):
 
             self._vlc._media_list_player.stop()
             logging.debug('Building medialist')
-            ml = self._vlc.build_medialist_from_uri(tag_info['uri'])
+            ml = self._vlc.build_medialist_from_uri(tagInfo['uri'])
             self._vlc._media_list_player.set_media_list(ml)
             self._vlc._media_list_player.play()
 
             logging.debug('Setting state to PLAYING')
             self._state = VirtualJukebox.State.PLAYING
             self._playType = VirtualJukebox.PlayType.NFC
-            self._currentlyPlayingURI = tag_info['uri']
+            self._currentlyPlayingURI = tagInfo['uri']
 
         # We only request a stop command if we're playing audio triggered by the NFC device
         if messageDict['event'] == 'stop' and self._playType == VirtualJukebox.PlayType.NFC:
@@ -96,6 +101,24 @@ class VirtualJukebox(object):
             self._state = VirtualJukebox.State.WAITING
             self._playType = VirtualJukebox.PlayType.NONE
 
+
+    def _process_queue_message__plex(self, messageDict):
+
+        dataPayload = messageDict['data']
+
+        if messageDict['event'] == 'start':
+            streamURLs = self._plex.getStreamURLsForAlbum(dataPayload['album'])
+            self._vlc.stop()
+            mediaList = self._vlc.convert_filepaths_to_medialist(streamURLs)
+            self._vlc._media_list_player.set_media_list(mediaList)  # TODO: don't call this directly
+            
+            self._playType == VirtualJukebox.PlayType.STREAM
+            self._vlc.play()
+
+        if messageDict['event'] == 'stop':
+            
+            self._playType == VirtualJukebox.PlayType.NONE
+            self._vlc.stop()
 
 
     def run(self):
