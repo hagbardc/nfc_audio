@@ -3,6 +3,7 @@ import ndef
 from nfc.clf import RemoteTarget
 from time import sleep
 from enum import Enum, auto
+import json
 
 import logging
 logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
@@ -13,11 +14,33 @@ logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
 class NFCController(object):
  
 
-    def __init__(self):
+    def __init__(self, appid = 'nfc', message_queue = None):
+        """Initialize NFCController object
+
+        Args:
+            appid (str, optional): Name of the application, used in publication on the message queue. Defaults to 'nfc'.
+            message_queue (Queue, optional): Message queue onto which we publish events. Defaults to None.
+        """
         self._clf = nfc.ContactlessFrontend('usb')
 
         self.currentTag = None  # Currently connected tag, if any
         self.lastTag = None     # We use this to check to see if the tag currently being read is different than the last one stored
+
+        self._messageQueue = message_queue
+        self._appid = appid
+
+
+    def tick(self):
+        """Have the NFCController class go through a cycle of: Check to see if tag state has change, publish if it has
+
+        Since there are no blocking calls in this class, we can do this as part of a realtime cycle in an 
+        app-level event loop
+        """
+
+        self.sense_for_target_tag()
+
+
+
 
     def is_tag_present(self):
         """Returns True if there is a tag at the reader, False else
@@ -29,6 +52,13 @@ class NFCController(object):
         if not self.currentTag:
             self.currentTag = tag
             logging.debug('Setting current tag: {0}'.format(NFCController.get_tag_data_as_dict(self.currentTag)))
+
+            message = { 'source': self._appid, 
+                        'event': 'start', 
+                        'data': NFCController.get_tag_data_as_dict(self.currentTag) }
+                        
+            self._messageQueue.put(json.dumps(message))
+
             return
 
         if self.currentTag.identifier != tag.identifier:
@@ -37,17 +67,33 @@ class NFCController(object):
             self.currentTag = tag
             logging.debug(self.currentTag)
 
+            message = { 'source': self._appid, 
+                        'event': 'start', 
+                        'data': NFCController.get_tag_data_as_dict(self.currentTag) }
+                        
+            self._messageQueue.put(json.dumps(message))
+
+
         return
 
     def on_release(self, tag):
         logging.debug('Calling on_release with {0}'.format(tag))
         logging.debug('Tag removed from the reader')
+
         self.lastTag = self.currentTag
         self.currentTag = None
+
+        message = { 'source': self._appid, 
+                    'event': 'stop', 
+                    'data': NFCController.get_tag_data_as_dict(self.lastTag) }
+
+        self._messageQueue.put(json.dumps(message))
         return
 
 
     def sense_for_target_tag(self):
+        """Check the status of the NFC reader, and execute the appropriate callback functions (on_release, on_connect)
+        """
 
         target = self._clf.sense(RemoteTarget('106A'))
         

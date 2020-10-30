@@ -10,6 +10,7 @@ from enum import Enum, auto
 import logging
 import sys
 from time import sleep
+import json
 
 logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
                     level=logging.DEBUG)
@@ -32,7 +33,7 @@ class VirtualJukebox(object):
         STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
 
     def __init__(self, nfcQueue, socketQueue): 
-        self._nfc = NFCController()
+        self._nfc = NFCController(message_queue = nfcQueue)
         self._vlc = VLCController()
         self._state = VirtualJukebox.State.WAITING
         self._playType = VirtualJukebox.PlayType.NONE
@@ -42,73 +43,69 @@ class VirtualJukebox(object):
         self._socketQueue = socketQueue
 
 
-    def check_tag_existence_and_play(self):
-        """ When called, will check to ensure a tag is present and plays the music associated with the tag
+    def process_queue_message(self, message):
+        """Takes in a message from the data sources, and triggers audio events as appropriate
 
-        This is only called when transferring from a WAITING state, and transitions to a PLAYING state
+        Args:
+            message (str): JSON string describing an event from the source, and necessary audio data
         """
         
-        if not self._nfc.currentTag:
+        # Convert the string to a dict, and validate the content
+        try:
+            messageDict = json.loads(message)
+        except json.decoder.JSONDecodeError as err:
+            logging.error('Invalid JSON string on queue: [{0}]'.format(message))
             return
-
-        if not self._state == VirtualJukebox.State.WAITING:
-            logging.error('check_tag_existence_and_play called from inappropriate state.  Returning as no-op')
-            return 
-
         
-        tag_info = NFCController.get_tag_data_as_dict(self._nfc.currentTag)
-        logging.debug('Tag info: {0}'.format(tag_info))
+        if messageDict['source'] == 'nfc':
+            self._process_queue_message__nfc(messageDict)
+        elif messageDict['source'] == 'plex':
+            self._process_queue_message__plex(messageDict)
+        else:
+            logging.error('Invalid source: [{0}]'.format(message))
 
-        if not tag_info:
-            logging.error('Attempt to get tag info failed: Race condition?')
-            return
 
-        if tag_info['uri'] == self._currentlyPlayingURI:
+    def _process_queue_message__nfc(self, messageDict):
+
+        tag_info = messageDict['data']
+
+        if messageDict['event'] == 'start':
+            
+            if tag_info['uri'] == self._currentlyPlayingURI:
+                self._vlc._media_list_player.play()
+                self._state = VirtualJukebox.State.PLAYING
+                self._playType = VirtualJukebox.PlayType.NFC
+                return
+
+            self._vlc._media_list_player.stop()
+            logging.debug('Building medialist')
+            ml = self._vlc.build_medialist_from_uri(tag_info['uri'])
+            self._vlc._media_list_player.set_media_list(ml)
             self._vlc._media_list_player.play()
+
+            logging.debug('Setting state to PLAYING')
             self._state = VirtualJukebox.State.PLAYING
             self._playType = VirtualJukebox.PlayType.NFC
-            return
+            self._currentlyPlayingURI = tag_info['uri']
 
-        self._vlc._media_list_player.stop()
-        logging.debug('Building medialist')
-        ml = self._vlc.build_medialist_from_uri(tag_info['uri'])
-        self._vlc._media_list_player.set_media_list(ml)
-        self._vlc._media_list_player.play()
-
-        logging.debug('Setting state to PLAYING')
-        self._state = VirtualJukebox.State.PLAYING
-        self._playType = VirtualJukebox.PlayType.NFC
-        self._currentlyPlayingURI = tag_info['uri']
+        # We only request a stop command if we're playing audio triggered by the NFC device
+        if messageDict['event'] == 'stop' and self._playType == VirtualJukebox.PlayType.NFC:
+            logging.debug('Tag is no longer present.  Stopping music')
+            logging.debug('Setting state to WAITING')
+            self._vlc._media_list_player.pause()
+            self._state = VirtualJukebox.State.WAITING
+            self._playType = VirtualJukebox.PlayType.NONE
 
 
-    def waiting_for_halt(self):
-        """When called, checks to see if there is a 
-
-        Will make appropriate state changes as necessary
-        """
-
-        if self._nfc.is_tag_present():
-            return
-
-        logging.debug('Tag is no longer present.  Stopping music')
-        logging.debug('Setting state to WAITING')
-        self._vlc._media_list_player.pause()
-        self._state = VirtualJukebox.State.WAITING
-        self._playType = VirtualJukebox.PlayType.NONE
-        return
-        
 
     def run(self):
 
         try:
             while True:
-                self._nfc.sense_for_target_tag()
-                if self._state == VirtualJukebox.State.WAITING:
-                    self.check_tag_existence_and_play()
 
-                if self._state == VirtualJukebox.State.PLAYING:
-                    self.waiting_for_halt()
-                
+                # This pings the NFC, updates its internal tag states, and will push a message onto 
+                # the NFCQueue
+                self._nfc.sense_for_target_tag()
 
                 # Poll the queues to see if there's anything in there waiting for me
                 for q in [self._nfcQueue, self._socketQueue]:
@@ -118,6 +115,7 @@ class VirtualJukebox(object):
                             continue
 
                         logging.debug('Message from queue: {0}'.format(message) )
+                        self.process_queue_message(message)
 
 
             sleep(0.1)  # There's no real need to poll the NFC device at an incredibly high frequency
@@ -142,6 +140,11 @@ if __name__ == '__main__':
     socket_process = Process(target = music_socket_monitor_worker, args=(host, port, socketQueue,))
     socket_process.start()
 
-    app = VirtualJukebox(nfcQueue, socketQueue)
-    app.run()
+    try:
+        app = VirtualJukebox(nfcQueue, socketQueue)
+        app.run()
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
+    logging.debug('Joining the socket process')
+    socket_process.join()
