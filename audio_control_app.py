@@ -34,8 +34,21 @@ class VirtualJukebox(object):
         STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
 
     def __init__(self, nfcQueue, socketQueue): 
+
+        self._logger = logging.getLogger('nfc_audio')
+        
+        
+        self._logger.setLevel(logging.DEBUG)
+
+        fh = logging.FileHandler('/tmp/audio.log')
+        fh.setLevel(logging.DEBUG)
+        self._logger.addHandler(fh)
+
+        self._logger.debug('Initialized logger')
+        
+
         self._nfc = NFCController(message_queue = nfcQueue)
-        self._vlc = VLCController()
+        self._vlc = None
         self._state = VirtualJukebox.State.WAITING
         self._playType = VirtualJukebox.PlayType.NONE
         self._currentlyPlayingURI = None
@@ -45,6 +58,7 @@ class VirtualJukebox(object):
 
         self._plex = PlexInterface()
         self._plex.connect()  # This will fail if the server isn't up.  Should do so gracefully, and reconnect when needed
+
 
 
     def process_queue_message(self, message):
@@ -58,21 +72,25 @@ class VirtualJukebox(object):
         try:
             messageDict = json.loads(message)
         except json.decoder.JSONDecodeError:
-            logging.error('Invalid JSON string on queue: [{0}]'.format(message))
+            self._logger.error('Invalid JSON string on queue: [{0}]'.format(message))
             return
         
+        if messageDict['event'] == 'start' and not self._vlc:
+            self._vlc = VLCController()
+
         if messageDict['source'] == 'nfc':
             self._process_queue_message__nfc(messageDict)
         elif messageDict['source'] == 'plex':
             self._process_queue_message__plex(messageDict)
         else:
-            logging.error('Invalid source: [{0}]'.format(message))
+            self._logger.error('Invalid source: [{0}]'.format(message))
 
 
     def _process_queue_message__nfc(self, messageDict):
 
         tagInfo = messageDict['data']
-        logging.debug('Procesing NFC message: {0}'.format(messageDict))
+        self._logger.debug('Procesing NFC message: {0}'.format(messageDict))
+
 
         if messageDict['event'] == 'start':
             
@@ -83,20 +101,20 @@ class VirtualJukebox(object):
                 return
 
             self._vlc._media_list_player.stop()
-            logging.debug('Building medialist')
+            self._logger.debug('Building medialist')
             ml = self._vlc.build_medialist_from_uri(tagInfo['uri'])
             self._vlc._media_list_player.set_media_list(ml)
             self._vlc._media_list_player.play()
 
-            logging.debug('Setting state to PLAYING')
+            self._logger.debug('Setting state to PLAYING')
             self._state = VirtualJukebox.State.PLAYING
             self._playType = VirtualJukebox.PlayType.NFC
             self._currentlyPlayingURI = tagInfo['uri']
 
         # We only request a stop command if we're playing audio triggered by the NFC device
         if messageDict['event'] == 'stop' and self._playType == VirtualJukebox.PlayType.NFC:
-            logging.debug('Tag is no longer present.  Stopping music')
-            logging.debug('Setting state to WAITING')
+            self._logger.debug('Tag is no longer present.  Stopping music')
+            self._logger.debug('Setting state to WAITING')
             self._vlc._media_list_player.pause()
             self._state = VirtualJukebox.State.WAITING
             self._playType = VirtualJukebox.PlayType.NONE
@@ -137,14 +155,14 @@ class VirtualJukebox(object):
                         if not message:
                             continue
 
-                        logging.debug('Message from queue: {0}'.format(message) )
+                        self._logger.debug('Message from queue: {0}'.format(message) )
                         self.process_queue_message(message)
 
 
             sleep(0.1)  # There's no real need to poll the NFC device at an incredibly high frequency
 
         except KeyboardInterrupt:
-            logging.debug('Ctrl-c interrupt:  Exiting application')
+            self._logger.debug('Ctrl-c interrupt:  Exiting application')
             sys.exit(0)
         
 
@@ -154,7 +172,8 @@ class VirtualJukebox(object):
 
 if __name__ == '__main__':
     
-    host = 'nfcaudioserver'
+    sleep(10)
+    host = ''  # Since we're listening, we don't need a port. 
     port = 32413
 
     nfcQueue = Queue()
