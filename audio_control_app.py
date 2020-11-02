@@ -5,6 +5,7 @@ from vlccontrol.vlccontroller import VLCController
 from socketmonitor.socketmonitor import music_socket_monitor_worker
 from plexinterface.plexinterface import PlexInterface
 
+import argparse
 
 from multiprocessing import Process, Queue
 from enum import Enum, auto
@@ -33,20 +34,18 @@ class VirtualJukebox(object):
         NFC = auto(),   # Playing audio from the NFC reader
         STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
 
-    def __init__(self, nfcQueue, socketQueue): 
+    def __init__(self, nfcQueue, socketQueue, log_to_file=False): 
 
         self._logger = logging.getLogger('nfc_audio')
         
+        if log_to_file: 
+            self._logger.setLevel(logging.DEBUG)
+
+            fh = logging.FileHandler('/tmp/audio.log')
+            fh.setLevel(logging.DEBUG)
+            self._logger.addHandler(fh)
+            self._logger.debug('Initialized logger')
         
-        self._logger.setLevel(logging.DEBUG)
-
-        fh = logging.FileHandler('/tmp/audio.log')
-        fh.setLevel(logging.DEBUG)
-        self._logger.addHandler(fh)
-
-        self._logger.debug('Initialized logger')
-        
-
         self._nfc = NFCController(message_queue = nfcQueue)
         self._vlc = None
         self._state = VirtualJukebox.State.WAITING
@@ -57,9 +56,10 @@ class VirtualJukebox(object):
         self._socketQueue = socketQueue
 
         self._plex = PlexInterface()
+
+    def _initInterfaces(self):
+        self._vlc = VLCController()
         self._plex.connect()  # This will fail if the server isn't up.  Should do so gracefully, and reconnect when needed
-
-
 
     def process_queue_message(self, message):
         """Takes in a message from the data sources, and triggers audio events as appropriate
@@ -67,6 +67,9 @@ class VirtualJukebox(object):
         Args:
             message (str): JSON string describing an event from the source, and necessary audio data
         """
+
+        if not self._vlc:  # initInterfaces hasn't yet been called
+            self._initInterfaces()
         
         # Convert the string to a dict, and validate the content
         try:
@@ -82,6 +85,8 @@ class VirtualJukebox(object):
             self._process_queue_message__nfc(messageDict)
         elif messageDict['source'] == 'plex':
             self._process_queue_message__plex(messageDict)
+        elif messageDict['source'] == 'remote':
+            self._process_queue_message__remote(messageDict)
         else:
             self._logger.error('Invalid source: [{0}]'.format(message))
 
@@ -123,9 +128,12 @@ class VirtualJukebox(object):
     def _process_queue_message__plex(self, messageDict):
 
         dataPayload = messageDict['data']
+        event = messageDict['event']
 
-        if messageDict['event'] == 'start':
+        if event == 'start':
             streamURLs = self._plex.getStreamURLsForAlbum(dataPayload['album'])
+
+            self._logger.debug('List of URLS: {0}'.format(streamURLs))
             self._vlc.stop()
             mediaList = self._vlc.convert_filepaths_to_medialist(streamURLs)
             self._vlc._media_list_player.set_media_list(mediaList)  # TODO: don't call this directly
@@ -133,11 +141,31 @@ class VirtualJukebox(object):
             self._playType == VirtualJukebox.PlayType.STREAM
             self._vlc.play()
 
-        if messageDict['event'] == 'stop':
-            
-            self._playType == VirtualJukebox.PlayType.NONE
-            self._vlc.stop()
 
+    def _process_queue_message__remote(self, messageDict):
+
+        dataPayload = messageDict['data']
+        event = messageDict['event']
+
+        if event == 'pause':
+            self._logger.debug('Received pause from remote')
+            if self._state == VirtualJukebox.State.PLAYING:
+                self._vlc._media_list_player.pause()
+                self._state = VirtualJukebox.State.WAITING
+                self._playType = VirtualJukebox.PlayType.NONE
+
+            elif self._state == VirtualJukebox.State.WAITING:
+                self._vlc._media_list_player.play()
+                self._state = VirtualJukebox.State.PLAYING
+                self._playType = VirtualJukebox.PlayType.STREAM
+
+        elif event == 'forward':
+            self._logger.debug('Received forward from remote')
+            self._vlc._media_list_player.next()
+
+        elif event == 'previous':
+            self._logger.debug('Received back from remote')
+            self._vlc._media_list_player.previous()
 
     def run(self):
 
@@ -168,11 +196,26 @@ class VirtualJukebox(object):
 
 
 
+def parse_arguments(argv):
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument( '-s', '--sleep', dest='sleep_time',
+                         type=int, default=0, 
+                         help='Sets how long to sleep on script start')
+
+    parser.add_argument( '-f', '--filelog', dest='filelog',
+                         type=bool, default=False,
+                         help='If present, will send logs to /tmp/audio.log')
+
+    return parser.parse_args(argv)
+
 
 
 if __name__ == '__main__':
     
-    sleep(10)
+    args = parse_arguments(sys.argv[1:])
+    sleep(args.sleep_time) 
+
     host = ''  # Since we're listening, we don't need a port. 
     port = 32413
 
@@ -183,7 +226,7 @@ if __name__ == '__main__':
     socket_process.start()
 
     try:
-        app = VirtualJukebox(nfcQueue, socketQueue)
+        app = VirtualJukebox(nfcQueue, socketQueue, log_to_file=args.filelog)
         app.run()
     except (KeyboardInterrupt, SystemExit):
         pass
