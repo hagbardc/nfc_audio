@@ -31,9 +31,13 @@ class VLCController(object):
     }
 
     def __init__(self):
+        """Sets up the vlc connection, and sets audio level to default 50
+        """
         
         self._vlcInstance = vlc.Instance()
         self._media_list_player = self._vlcInstance.media_list_player_new()
+        self._media_list_player.get_media_player().audio_set_volume(50)
+        print('Created VLC instance.  Volume is {0}'.format(self._media_list_player.get_media_player().audio_get_volume()))
 
         
 
@@ -61,6 +65,8 @@ class VLCController(object):
         """Sends a play to the currently playing media (if any)
         """
         self._media_list_player.play()
+        print('VLC instance volume is {0}'.format(self._media_list_player.get_media_player().audio_get_volume()))
+
 
     def pause(self):
         """Sends a pause the currently playing media (if any)
@@ -72,6 +78,27 @@ class VLCController(object):
         """
         self._media_list_player.stop()
 
+    def next(self):
+        """Sends a pause the currently playing media (if any)
+        """
+        self._media_list_player.next()
+
+    def previous(self):
+        """Sends a pause the currently playing media (if any)
+        """
+        self._media_list_player.previous()
+
+    def setVolume(self, volume):
+        """Modifies the volume attribute of the audio player
+
+        Args:
+            volume (int): Volume level for audio
+        """
+        self._media_list_player.get_media_player().audio_set_volume(volume)
+
+
+    def set_media_list(self, ml):
+        self._media_list_player.set_media_list(ml)
 
     def get_audio_filepaths_from_path(self, path):
         """Given a path, will return a playlist suitable for delivery to the vlc.MediaPlayer

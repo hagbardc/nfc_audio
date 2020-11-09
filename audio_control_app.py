@@ -34,14 +34,14 @@ class VirtualJukebox(object):
         NFC = auto(),   # Playing audio from the NFC reader
         STREAM = auto() # Playing audio from a streaming source (e.g. Plex)
 
-    def __init__(self, nfcQueue, socketQueue, log_to_file=False): 
+    def __init__(self, nfcQueue, socketQueue, log_to_file=None): 
 
         self._logger = logging.getLogger('nfc_audio')
         
         if log_to_file: 
             self._logger.setLevel(logging.DEBUG)
 
-            fh = logging.FileHandler('/tmp/audio.log')
+            fh = logging.FileHandler(log_to_file)
             fh.setLevel(logging.DEBUG)
             self._logger.addHandler(fh)
             self._logger.debug('Initialized logger')
@@ -65,7 +65,7 @@ class VirtualJukebox(object):
         """Takes in a message from the data sources, and triggers audio events as appropriate
 
         Args:
-            message (str): JSON string describing an event from the source, and necessary audio data
+            message (str or dict): JSON string describing an event from the source, and necessary audio data
         """
 
         if not self._vlc:  # initInterfaces hasn't yet been called
@@ -100,16 +100,16 @@ class VirtualJukebox(object):
         if messageDict['event'] == 'start':
             
             if tagInfo['uri'] == self._currentlyPlayingURI:
-                self._vlc._media_list_player.play()
+                self._vlc.play()
                 self._state = VirtualJukebox.State.PLAYING
                 self._playType = VirtualJukebox.PlayType.NFC
                 return
 
-            self._vlc._media_list_player.stop()
+            self._vlc.stop()
             self._logger.debug('Building medialist')
             ml = self._vlc.build_medialist_from_uri(tagInfo['uri'])
-            self._vlc._media_list_player.set_media_list(ml)
-            self._vlc._media_list_player.play()
+            self._vlc.set_media_list(ml)
+            self._vlc.play()
 
             self._logger.debug('Setting state to PLAYING')
             self._state = VirtualJukebox.State.PLAYING
@@ -120,7 +120,7 @@ class VirtualJukebox(object):
         if messageDict['event'] == 'stop' and self._playType == VirtualJukebox.PlayType.NFC:
             self._logger.debug('Tag is no longer present.  Stopping music')
             self._logger.debug('Setting state to WAITING')
-            self._vlc._media_list_player.pause()
+            self._vlc.pause()
             self._state = VirtualJukebox.State.WAITING
             self._playType = VirtualJukebox.PlayType.NONE
 
@@ -136,7 +136,7 @@ class VirtualJukebox(object):
             self._logger.debug('List of URLS: {0}'.format(streamURLs))
             self._vlc.stop()
             mediaList = self._vlc.convert_filepaths_to_medialist(streamURLs)
-            self._vlc._media_list_player.set_media_list(mediaList)  # TODO: don't call this directly
+            self._vlc.set_media_list(mediaList)  # TODO: don't call this directly
             
             self._playType == VirtualJukebox.PlayType.STREAM
             self._vlc.play()
@@ -150,22 +150,26 @@ class VirtualJukebox(object):
         if event == 'pause':
             self._logger.debug('Received pause from remote')
             if self._state == VirtualJukebox.State.PLAYING:
-                self._vlc._media_list_player.pause()
+                self._vlc.pause()
                 self._state = VirtualJukebox.State.WAITING
                 self._playType = VirtualJukebox.PlayType.NONE
 
             elif self._state == VirtualJukebox.State.WAITING:
-                self._vlc._media_list_player.play()
+                self._vlc.play()
                 self._state = VirtualJukebox.State.PLAYING
                 self._playType = VirtualJukebox.PlayType.STREAM
 
         elif event == 'forward':
             self._logger.debug('Received forward from remote')
-            self._vlc._media_list_player.next()
+            self._vlc.next()
 
         elif event == 'previous':
             self._logger.debug('Received back from remote')
-            self._vlc._media_list_player.previous()
+            self._vlc.previous()
+        
+        elif event == 'setVolume':
+            self._logger.debug('Received setVolume({0}) from remote'.format(dataPayload['volume']))
+            self._vlc.setVolume(dataPayload['volume'])
 
     def run(self):
 
@@ -204,7 +208,7 @@ def parse_arguments(argv):
                          help='Sets how long to sleep on script start')
 
     parser.add_argument( '-f', '--filelog', dest='filelog',
-                         type=bool, default=False,
+                         type=str, default=None,
                          help='If present, will send logs to /tmp/audio.log')
 
     return parser.parse_args(argv)
