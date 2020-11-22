@@ -41,8 +41,11 @@ class VirtualJukebox(object):
         if log_to_file: 
             self._logger.setLevel(logging.DEBUG)
 
+            formatter = logging.Formatter('%(filename)s.%(lineno)d:%(levelname)s:%(message)s')
+
             fh = logging.FileHandler(log_to_file)
             fh.setLevel(logging.DEBUG)
+            fh.setFormatter(formatter)
             self._logger.addHandler(fh)
             self._logger.debug('Initialized logger')
         
@@ -55,7 +58,7 @@ class VirtualJukebox(object):
         self._nfcQueue = nfcQueue
         self._socketQueue = socketQueue
 
-        self._plex = PlexInterface()
+        self._plex = PlexInterface(logger=self._logger)
 
     def _initInterfaces(self):
         self._vlc = VLCController()
@@ -68,27 +71,34 @@ class VirtualJukebox(object):
             message (str or dict): JSON string describing an event from the source, and necessary audio data
         """
 
-        if not self._vlc:  # initInterfaces hasn't yet been called
-            self._initInterfaces()
-        
-        # Convert the string to a dict, and validate the content
+        self._logger.debug('State before message processing: {0} / {1}'.format(self._state, self._playType))
         try:
-            messageDict = json.loads(message)
-        except json.decoder.JSONDecodeError:
-            self._logger.error('Invalid JSON string on queue: [{0}]'.format(message))
-            return
-        
-        if messageDict['event'] == 'start' and not self._vlc:
-            self._vlc = VLCController()
 
-        if messageDict['source'] == 'nfc':
-            self._process_queue_message__nfc(messageDict)
-        elif messageDict['source'] == 'plex':
-            self._process_queue_message__plex(messageDict)
-        elif messageDict['source'] == 'remote':
-            self._process_queue_message__remote(messageDict)
-        else:
-            self._logger.error('Invalid source: [{0}]'.format(message))
+
+            if not self._vlc:  # initInterfaces hasn't yet been called
+                self._initInterfaces()
+            
+            # Convert the string to a dict, and validate the content
+            try:
+                messageDict = json.loads(message)
+            except json.decoder.JSONDecodeError:
+                self._logger.error('Invalid JSON string on queue: [{0}]'.format(message))
+                return
+            
+            if messageDict['event'] == 'start' and not self._vlc:
+                self._vlc = VLCController()
+
+            if messageDict['source'] == 'nfc':
+                self._process_queue_message__nfc(messageDict)
+            elif messageDict['source'] == 'plex':
+                self._process_queue_message__plex(messageDict)
+            elif messageDict['source'] == 'remote':
+                self._process_queue_message__remote(messageDict)
+            else:
+                self._logger.error('Invalid source: [{0}]'.format(message))
+
+        finally:
+            self._logger.debug('State after message processing: {0} / {1}'.format(self._state, self._playType))
 
 
     def _process_queue_message__nfc(self, messageDict):
@@ -131,14 +141,18 @@ class VirtualJukebox(object):
         event = messageDict['event']
 
         if event == 'start':
-            streamURLs = self._plex.getStreamURLsForAlbum(dataPayload['album'])
+            artist = None
+            if 'artist' in dataPayload:
+                artist = dataPayload['artist']
+
+            streamURLs = self._plex.getStreamURLsForAlbum(albumTitle=dataPayload['album'], artist=artist)
 
             self._logger.debug('List of URLS: {0}'.format(streamURLs))
             self._vlc.stop()
             mediaList = self._vlc.convert_filepaths_to_medialist(streamURLs)
-            self._vlc.set_media_list(mediaList)  # TODO: don't call this directly
+            self._vlc.set_media_list(mediaList) 
             
-            self._playType == VirtualJukebox.PlayType.STREAM
+            self._playType = VirtualJukebox.PlayType.STREAM
             self._vlc.play()
 
 
@@ -152,12 +166,12 @@ class VirtualJukebox(object):
             if self._state == VirtualJukebox.State.PLAYING:
                 self._vlc.pause()
                 self._state = VirtualJukebox.State.WAITING
-                self._playType = VirtualJukebox.PlayType.NONE
+                #self._playType = VirtualJukebox.PlayType.NONE
 
             elif self._state == VirtualJukebox.State.WAITING:
                 self._vlc.play()
                 self._state = VirtualJukebox.State.PLAYING
-                self._playType = VirtualJukebox.PlayType.STREAM
+                #self._playType = VirtualJukebox.PlayType.STREAM
 
         elif event == 'forward':
             self._logger.debug('Received forward from remote')
@@ -182,7 +196,7 @@ class VirtualJukebox(object):
 
                 # Poll the queues to see if there's anything in there waiting for me
                 for q in [self._nfcQueue, self._socketQueue]:
-                    if not q.empty():
+                    if q and not q.empty():
                         message = q.get(block=False, timeout=0.01)
                         if not message:
                             continue

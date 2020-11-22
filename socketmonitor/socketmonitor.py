@@ -35,6 +35,7 @@ class MusicSocketMonitor(object):
     
     def startSocketListening(self):
 
+        self._logger.debug('Calling MusicSocketMonitor.startSocketListening')
         while True:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.bind((self._host, self._port))
@@ -52,7 +53,7 @@ class MusicSocketMonitor(object):
 
             self._logger.debug('Calling close')
             s.close()
-            time.sleep(0.1)  # We put a little sleep in here to give the process time to open and close the socket
+            time.sleep(0.2)  # We put a little sleep in here to give the process time to open and close the socket
 
     
     def _sendMessageOnQueue(self, message):

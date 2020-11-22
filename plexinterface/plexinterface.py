@@ -1,17 +1,27 @@
 from plexapi.server import PlexServer
 import plexapi.exceptions
 
+# Used to calculate similarity metrics for artist names
+from difflib import SequenceMatcher
+
 import logging
+logging.basicConfig(format='%(filename)s.%(lineno)d:%(levelname)s:%(message)s',
+                    level=logging.DEBUG)
 
 class PlexInterface(object):
 
-    def __init__(self, servername='plexserver', port=32400, token='KLs3X72-9BzWhpJSen9U'):
+    def __init__(self, servername='plexserver', port=32400, token='KLs3X72-9BzWhpJSen9U', logger=None):
         self._servername = servername
         self._port = port
         self._token = token
         
         self._plex = None
         self._music = None
+        self._logger = logger
+
+        if not logger:
+            self._logger = logging.getLogger('PlexInterface')
+            self._logger.setLevel(logging.DEBUG)
         
         
     def connect(self):
@@ -39,17 +49,33 @@ class PlexInterface(object):
         Returns: A list of stream urls (str), or None if no album was found/error
         """
 
-        if artist:
-            logging.warn('Narrowing search via artist name is not yet supported')
-
         albumList = self._music.searchAlbums(title=albumTitle)
         if not len(albumList):
-            logging.warn('No albums returned with album title {0}'.format(albumTitle))
+            self._logger.warn('No albums returned with album title {0}'.format(albumTitle))
             return None
 
-        album = albumList[0]
+        # If only one album was returned, or a artist name hint was not passed in
+        # just play the first album returned
+        if len(albumList) == 1 or not artist:
+            album = albumList[0]
+            self._logger.debug('Returning artist / album {0} / {1}'.format(album.artist().title, albumTitle))
+            return [t.getStreamURL() for t in album.tracks()]
+
+        # If more than one album was returned, use the artist hint passed in to help decide on an album
+        albumNameDiffs = []
+        for album in albumList:
+            ratio = SequenceMatcher(None, album.artist().title, artist).ratio()
+            albumNameDiffs.append(ratio)
+            print('Similarity between {0} and {1} is {2}'.format(album.artist().title, artist, ratio))
+
+        indexOfalbumToPlay = albumNameDiffs.index(max(albumNameDiffs))
+        album = albumList[indexOfalbumToPlay]
+        self._logger.debug('Returning artist / album {0} / {1}'.format(album.artist().title, albumTitle))
+
+
         return [t.getStreamURL() for t in album.tracks()]
 
+        
 
 
 
@@ -59,7 +85,9 @@ if __name__ == '__main__':
     p = PlexInterface()
     p.connect()
 
-    urls = p.getStreamURLsForAlbum(albumTitle='Londinium')
+    urls = p.getStreamURLsForAlbum(albumTitle='Light')
     pprint.pprint(urls)
 
+    urls = p.getStreamURLsForAlbum(albumTitle='Light', artist='KMFDM')
+    pprint.pprint(urls)
 
