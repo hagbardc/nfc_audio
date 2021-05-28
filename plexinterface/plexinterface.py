@@ -82,7 +82,7 @@ class PlexInterface(object):
 if __name__ == '__main__':
     
     import pprint
-    p = PlexInterface()
+    p = PlexInterface(servername='192.168.50.154')
     p.connect()
 
     urls = p.getStreamURLsForAlbum(albumTitle='Light')
