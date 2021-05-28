@@ -58,10 +58,10 @@ class VirtualJukebox(object):
         self._nfcQueue = nfcQueue
         self._socketQueue = socketQueue
 
-        self._plex = PlexInterface(logger=self._logger)
+        self._plex = PlexInterface(servername='192.168.50.154', logger=self._logger)
 
     def _initInterfaces(self):
-        self._vlc = VLCController()
+        self._vlc = VLCController(logger=self._logger)
         self._plex.connect()  # This will fail if the server isn't up.  Should do so gracefully, and reconnect when needed
 
     def process_queue_message(self, message):
@@ -152,6 +152,8 @@ class VirtualJukebox(object):
             mediaList = self._vlc.convert_filepaths_to_medialist(streamURLs)
             self._vlc.set_media_list(mediaList) 
             
+            # TODO: Do we need to add a state change here? Otherwise when we 
+            # start an album from the remote, the pause botton won't pause
             self._playType = VirtualJukebox.PlayType.STREAM
             self._vlc.play()
 

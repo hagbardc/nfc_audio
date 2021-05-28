@@ -11,6 +11,7 @@ class VLCController(object):
     # This is primarily because I want to be be able to play the music via spotify without re-encoding
     # all of the NFC stickers
     localAudioRegistry = {
+        '6kvCH4eS92QkpBNdTmjLEz': '/home/pi/Documents/audio/The Jimi Hendrix Experience/Blues (1994)/',
         '0JAGz65j3Yn5O789bhDSwh': '/home/pi/Documents/audio/Jobim/The Man From Ipanema/',
         'dr_octagon_instrumentalyst': '/home/pi/Documents/audio/Dr Octagon/Instrumentalyst (Octagon Beats)/',
         '10E4WkTiRDqNnL0qdlXB5b': '/home/pi/Documents/audio/The Smiths/Singles/',
@@ -30,13 +31,22 @@ class VLCController(object):
         '6r7LZXAVueS5DqdrvXJJK7': '/home/pi/Documents/audio/Black Sabbath/Paranoid/'
     }
 
-    def __init__(self):
+    def __init__(self, logger=None):
         """Sets up the vlc connection, and sets audio level to default 50
         """
         
         self._vlcInstance = vlc.Instance()
         self._media_list_player = self._vlcInstance.media_list_player_new()
         self._media_list_player.get_media_player().audio_set_volume(50)
+
+
+        if not logger:
+            self._logger = logging.getLogger('PlexInterface')
+            self._logger.setLevel(logging.DEBUG)
+        else:
+            self._logger = logger
+
+
         print('Created VLC instance.  Volume is {0}'.format(self._media_list_player.get_media_player().audio_get_volume()))
 
         
@@ -164,13 +174,15 @@ class VLCController(object):
         if split_uri[0] == 'local' or split_uri[0] == 'spotify':
             
             uri_key = split_uri[len(split_uri)-1]
+
+            self._logger.debug(f'uri_key: {uri_key}')
             album_location = VLCController.localAudioRegistry[uri_key]
             filepaths =  sorted(self.get_audio_filepaths_from_path(album_location))
             media_list = self.convert_filepaths_to_medialist(filepaths)
 
 
         if not media_list:
-            logging.error('No valid media list was created. Probable URI error on tag')
+            self._logger.error('No valid media list was created. Probable URI error on tag')
         return media_list
 
 

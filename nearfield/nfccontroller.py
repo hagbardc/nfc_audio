@@ -56,8 +56,11 @@ class NFCController(object):
             message = { 'source': self._appid, 
                         'event': 'start', 
                         'data': NFCController.get_tag_data_as_dict(self.currentTag) }
-                        
-            self._messageQueue.put(json.dumps(message))
+            
+            logging.info(f'Message is {message}')
+
+            if self._messageQueue:
+                self._messageQueue.put(json.dumps(message))
 
             return
 
@@ -71,8 +74,8 @@ class NFCController(object):
                         'event': 'start', 
                         'data': NFCController.get_tag_data_as_dict(self.currentTag) }
                         
-            self._messageQueue.put(json.dumps(message))
-
+            if self._messageQueue:
+                self._messageQueue.put(json.dumps(message))
 
         return
 
@@ -87,7 +90,9 @@ class NFCController(object):
                     'event': 'stop', 
                     'data': NFCController.get_tag_data_as_dict(self.lastTag) }
 
-        self._messageQueue.put(json.dumps(message))
+        if self._messageQueue:
+            self._messageQueue.put(json.dumps(message))
+
         return
 
 
@@ -181,5 +186,3 @@ if __name__ == '__main__':
         nfcController.sense_for_target_tag()
         sleep(0.1)
         # nfcController.print_tag_data(nfcController.currentTag)
-
-    #spotify:album:7MtJrKwP2h9eJMqnooR6iM
