@@ -146,6 +146,9 @@ class VirtualJukebox(object):
                 artist = dataPayload['artist']
 
             streamURLs = self._plex.getStreamURLsForAlbum(albumTitle=dataPayload['album'], artist=artist)
+            if not streamURLs:
+                self._logger.warn(f'No urls found when searching for {dataPayload}')
+                return
 
             self._logger.debug('List of URLS: {0}'.format(streamURLs))
             self._vlc.stop()
