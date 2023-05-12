@@ -2,7 +2,7 @@ import socket
 import sys
 
 
-host = '192.168.1.253'
+host = '192.168.50.253'
 port = 32413
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
