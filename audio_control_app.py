@@ -7,6 +7,9 @@ from plexinterface.plexinterface import PlexInterface
 
 import argparse
 
+import subprocess
+
+
 from multiprocessing import Process, Queue
 from enum import Enum, auto
 import logging
@@ -61,7 +64,13 @@ class VirtualJukebox(object):
         self._plex = PlexInterface(servername='192.168.50.154', logger=self._logger)
 
     def _initInterfaces(self):
+        self._logger.debug('Creating VLCController')
+
+        bt_connect = 'bluetoothctl connect B0:1F:81:3F:E6:3E'
+        subprocess.run(bt_connect, shell=True)
         self._vlc = VLCController(logger=self._logger)
+
+        #TODO: This can probably change to attempt to connect after a while, or when processing a message
         self._plex.connect()  # This will fail if the server isn't up.  Should do so gracefully, and reconnect when needed
 
     def process_queue_message(self, message):
@@ -87,6 +96,12 @@ class VirtualJukebox(object):
             
             if messageDict['event'] == 'start' and not self._vlc:
                 self._vlc = VLCController()
+
+            if messageDict['event'] == 'dump_bluetooth':
+                self.dump_bluetooth()
+                return
+
+
 
             if messageDict['source'] == 'nfc':
                 self._process_queue_message__nfc(messageDict)
@@ -216,6 +231,17 @@ class VirtualJukebox(object):
             self._logger.debug('Ctrl-c interrupt:  Exiting application')
             sys.exit(0)
         
+    def dump_bluetooth(self):
+        self._logger.debug('showing bt')
+
+        device_enumerator = self._vlc._media_list_player.get_media_player().audio_output_device_enum()
+        while device_enumerator:
+            self._logger.debug(device_enumerator.contents.description)
+            if hasattr(device_enumerator, 'next'):
+                device_enumerator = device_enumerator.next
+            else:
+                device_enumerator = None
+
 
 
 
@@ -233,6 +259,9 @@ def parse_arguments(argv):
     return parser.parse_args(argv)
 
 
+
+
+    
 
 if __name__ == '__main__':
     

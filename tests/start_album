@@ -1,0 +1,1 @@
+python3 send_message_to_socket.py "{\"source\": \"plex\", \"event\": \"start\", \"data\": {\"album\": \"OK Go\" } }"
