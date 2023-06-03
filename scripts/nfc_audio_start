@@ -1,15 +1,26 @@
 #!/bin/sh -e
 # Set up audio from NFC system
+
+export XDG_RUNTIME_DIR=/run/user/1000
+
+# Get the number of running audio_control_app processes
+# Exit if the app is already running (we use -gt bc it will find the grep command)
+numapps=$(ps -ef | grep audio_control_app | wc -l)
+if [ "$numapps" -gt 1 ]; then
+	printf "There were %d instances running\n" "$numapps"
+	exit 0
+fi
+
+
 export AUDIO_LOG_FILE=/tmp/audio.log
 if [ -f $AUDIO_LOG_FILE ]; then
     printf "Removing audio file %s\n" "$AUDIO_LOG_FILE"
     sudo rm $AUDIO_LOG_FILE
 fi
 
-printf "I am user: %s\n" "$USER"
-
 # Connect to the bluetooth speaker
 #bluetoothctl connect B0:1F:81:3F:E6:3E
+
 
 
 /usr/bin/python3.7 /home/pi/Projects/nfc_audio/audio_control_app.py -s 5 -f $AUDIO_LOG_FILE &
