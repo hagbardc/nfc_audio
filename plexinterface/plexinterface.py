@@ -75,7 +75,24 @@ class PlexInterface(object):
 
         return [t.getStreamURL() for t in album.tracks()]
 
+    def getFullAlbumList(self):
+        """Generates a full album list from the Plex server, 
         
+        Returns: a list of {'artist': str, 'title': str }
+        """
+        fullResultList = self._music.albums()
+        if not len(fullResultList):
+            self._logger.warn('No albums returned from full album list generation')
+            return None
+
+        listToReturn = []
+        for album in fullResultList:
+            listToReturn.append( { 'artist': album.artist().title, 'album': album.title } )
+            self._logger.debug('{0} - {1}'.format(album.artist().title, album.title))
+
+        self._logger.debug('Returning list of {0} elements'.format(len(listToReturn)))
+        return listToReturn
+
 
 
 
